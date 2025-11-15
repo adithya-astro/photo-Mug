@@ -93,12 +93,32 @@
         #cropper-container img {
             max-width: 100%;
         }
+        /* Arrow styles */
+        .arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 2rem;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 0.5rem;
+            cursor: pointer;
+            user-select: none;
+        }
+        .arrow.left {
+            left: 10px;
+        }
+        .arrow.right {
+            right: 10px;
+        }
     </style>
 </head>
 <body>
 
     <div id="container">
-        <img id="background-img" src="drawing.jpg" alt="Drawing" />
+        <img id="background-img" src="" alt="Drawing" />
+        <div class="arrow left" onclick="changeImage(-1)">&#10094;</div>
+        <div class="arrow right" onclick="changeImage(1)">&#10095;</div>
         <div id="photo-display">
             <img id="uploaded-photo" src="" alt="Your photo" onclick="openCropper()">
         </div>
@@ -124,6 +144,27 @@
     <script>
         const { jsPDF } = window.jspdf;
         let cropper;
+        let images = [];
+        let currentImageIndex = 0;
+
+        window.onload = function() {
+            fetch('images.json')
+                .then(response => response.json())
+                .then(data => {
+                    images = data.images;
+                    document.getElementById('background-img').src = images[currentImageIndex];
+                });
+        };
+
+        function changeImage(direction) {
+            currentImageIndex += direction;
+            if (currentImageIndex < 0) {
+                currentImageIndex = images.length - 1;
+            } else if (currentImageIndex >= images.length) {
+                currentImageIndex = 0;
+            }
+            document.getElementById('background-img').src = images[currentImageIndex];
+        }
 
         document.getElementById('photo-input').addEventListener('change', function(event) {
             const file = event.target.files[0];
