@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Mug</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f0f0;
+        }
+        #container {
+            position: relative; 
+            margin-bottom: 20px;
+        }
+        #background-img {
+            display: block;
+            max-width: 80vw;
+            max-height: 70vh;
+        }
+        #photo-display {
+            position: absolute;
+            top: 50%;
+            left: 30%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            height: 90%;
+            background-color: transparent;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #photo-display img {
+            max-width: 100%;
+            max-height: 100%;
+            cursor: pointer;
+        }
+        #controls {
+            display: flex;
+            gap: 10px;
+        }
+        input[type="file"], input[type="number"] {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 700px;
+        }
+        #cropper-container {
+            max-width: 100%;
+        }
+        #cropper-container img {
+            max-width: 100%;
+        }
+        /* Arrow styles */
+        .arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 2rem;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 0.5rem;
+            cursor: pointer;
+            user-select: none;
+        }
+        .arrow.left {
+            left: 10px;
+        }
+        .arrow.right {
+            right: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="container">
+        <img id="background-img" src="" alt="Drawing" />
+        <div class="arrow left" onclick="changeImage(-1)">&#10094;</div>
+        <div class="arrow right" onclick="changeImage(1)">&#10095;</div>
+        <div id="photo-display">
+            <img id="uploaded-photo" src="" alt="Your photo" onclick="openCropper()">
+        </div>
+    </div>
+
+    <div id="controls">
+        <input type="file" id="photo-input" accept="image/*">
+        <input type="number" id="pdf-width-mm" placeholder="Width (mm)">
+        <input type="number" id="pdf-height-mm" placeholder="Height (mm)">
+        <button onclick="downloadPDF()">Download as PDF</button>
+    </div>
+
+    <!-- The Modal -->
+    <div id="cropper-modal" class="modal">
+        <div class="modal-content">
+            <div id="cropper-container">
+                <img id="cropper-image" src="">
+            </div>
+            <button onclick="cropImage()">Crop & Resize</button>
+        </div>
+    </div>
+
+    <script>
+        const { jsPDF } = window.jspdf;
+        let cropper;
+        let images = [];
+        let currentImageIndex = 0;
+
+        window.onload = function() {
+            fetch('images.json')
+                .then(response => response.json())
+                .then(data => {
+                    images = data.images;
+                    document.getElementById('background-img').src = images[currentImageIndex];
+                });
+        };
+
+        function changeImage(direction) {
+            currentImageIndex += direction;
+            if (currentImageIndex < 0) {
+                currentImageIndex = images.length - 1;
+            } else if (currentImageIndex >= images.length) {
+                currentImageIndex = 0;
+            }
+            document.getElementById('background-img').src = images[currentImageIndex];
+        }
+
+        document.getElementById('photo-input').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    openCropperWithImage(e.target.result);
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function openCropperWithImage(imageSrc) {
+            document.getElementById('cropper-image').src = imageSrc;
+            document.getElementById('cropper-modal').style.display = 'block';
+            if (cropper) {
+                cropper.destroy();
+            }
+            cropper = new Cropper(document.getElementById('cropper-image'), {
+                viewMode: 1,
+            });
+        }
+
+        function openCropper() {
+            const imageSrc = document.getElementById('uploaded-photo').src;
+            if (imageSrc && !imageSrc.endsWith('/')) {
+                openCropperWithImage(imageSrc);
+            }
+        }
+
+        function cropImage() {
+            if (cropper) {
+                const croppedImageDataURL = cropper.getCroppedCanvas().toDataURL();
+                document.getElementById('uploaded-photo').src = croppedImageDataURL;
+                document.getElementById('cropper-modal').style.display = 'none';
+                cropper.destroy();
+            }
+        }
+
+        function downloadPDF() {
+            const imageSrc = document.getElementById('uploaded-photo').src;
+            if (!imageSrc || imageSrc.endsWith('/')) {
+                alert('Please upload and crop an image first.');
+                return;
+            }
+
+            const capture = document.querySelector('#container');
+            const imageWidthMm = document.getElementById('pdf-width-mm').value;
+            const imageHeightMm = document.getElementById('pdf-height-mm').value;
+
+            const a4WidthMm = 210;
+            const a4HeightMm = 297;
+
+            html2canvas(capture, { scale: 2 }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const doc = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+
+                let pdfImageWidth, pdfImageHeight, x, y;
+
+                if (imageWidthMm && imageHeightMm && !isNaN(parseFloat(imageWidthMm)) && !isNaN(parseFloat(imageHeightMm))) {
+                    pdfImageWidth = parseFloat(imageWidthMm);
+                    pdfImageHeight = parseFloat(imageHeightMm);
+                    x = (a4WidthMm - pdfImageWidth) / 2;
+                    y = a4HeightMm - pdfImageHeight - 10; // 10mm from the bottom
+                } else {
+                    const canvasAspectRatio = canvas.width / canvas.height;
+                    pdfImageWidth = a4WidthMm - 20;
+                    pdfImageHeight = pdfImageWidth / canvasAspectRatio;
+                    x = 10;
+                    y = a4HeightMm - pdfImageHeight - 10; // 10mm from the bottom
+                }
+
+                if (x < 0) x = 0;
+                if (y < 0) y = 0;
+                if (pdfImageWidth > a4WidthMm) pdfImageWidth = a4WidthMm;
+                if (pdfImageHeight > a4HeightMm) pdfImageHeight = a4HeightMm;
+
+                doc.addImage(imgData, 'PNG', x, y, pdfImageWidth, pdfImageHeight);
+                doc.save('photo-mug.pdf');
+            });
+        }
+    </script>
+
+</body>
+</html>
