@@ -191,13 +191,13 @@
                     pdfImageWidth = parseFloat(imageWidthMm);
                     pdfImageHeight = parseFloat(imageHeightMm);
                     x = (a4WidthMm - pdfImageWidth) / 2;
-                    y = 10;
+                    y = a4HeightMm - pdfImageHeight - 10; // 10mm from the bottom
                 } else {
                     const canvasAspectRatio = canvas.width / canvas.height;
                     pdfImageWidth = a4WidthMm - 20;
                     pdfImageHeight = pdfImageWidth / canvasAspectRatio;
                     x = 10;
-                    y = 10;
+                    y = a4HeightMm - pdfImageHeight - 10; // 10mm from the bottom
                 }
 
                 if (x < 0) x = 0;
